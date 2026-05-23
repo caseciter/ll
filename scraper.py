@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 from markdownify import markdownify as md
 from datetime import datetime
+import re
 import sys
 
 def scrape_livelaw_judgments(url):
@@ -13,18 +14,24 @@ def scrape_livelaw_judgments(url):
         response.raise_for_status()
         
         soup = BeautifulSoup(response.content, 'html.parser')
-        content = soup.find('body') 
+        # Find all articles/cards (common tag for LiveLaw listing)
+        articles = soup.find_all('article') 
         
-        if content:
-            markdown_content = md(str(content))
-            filename = f"livelaw_judgments_{datetime.now().strftime('%Y-%m-%d')}.md"
+        filtered_content = []
+        for article in articles:
+            # Check if "LiveLaw (SC)" is in the text of the article
+            if re.search(r'LiveLaw\s*\(SC\)', article.get_text(), re.IGNORECASE):
+                filtered_content.append(str(article))
+        
+        if filtered_content:
+            filename = f"livelaw_sc_judgments_{datetime.now().strftime('%Y-%m-%d')}.md"
             with open(filename, "w", encoding="utf-8") as f:
-                f.write(f"# LiveLaw SC Judgments - {datetime.now().date()}\n\n")
-                f.write(markdown_content)
-            print(f"Successfully saved to {filename}")
+                f.write(f"# LiveLaw (SC) Judgments - {datetime.now().date()}\n\n")
+                for item in filtered_content:
+                    f.write(md(item) + "\n---\n")
+            print(f"Successfully saved filtered content to {filename}")
         else:
-            print("Error: Could not find main content on the page.")
-            sys.exit(1)
+            print("No articles with 'LiveLaw (SC)' citation found.")
             
     except Exception as e:
         print(f"Error during scraping: {e}")
